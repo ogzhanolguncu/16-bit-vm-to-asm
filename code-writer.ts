@@ -116,9 +116,6 @@ M=0
   }
 }
 
-// push constant 10
-//pop local 0
-
 //TO SELECT SOMEWHERE IN THE MEMORY LIKE RAM[256] = 0 LIKE POINTER
 //USE THIS
 //@SP
@@ -128,3 +125,4 @@ M=0
 //TO ASSIGN SOMEWHERE DIRECTLY IN THE MEMORY LIKE CHANGING SP; MEANING RAM[0] = 0
 //@SP
 //M=0
+//This is the same technique we use to increment SP,LCL,THIS,THAT like SP++,LCL++
