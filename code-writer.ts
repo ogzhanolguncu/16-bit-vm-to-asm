@@ -53,6 +53,211 @@ export class CodeWriter {
   source = "";
 
   constructor() {
+    this.generateAssemblyCodeForInitialization();
+  }
+
+  write(input: string) {
+    const cleanedInput = input.replace(/undefined|null|UNKNOWN/g, "").trim();
+    if (!cleanedInput) return;
+
+    if (LIST_OF_ARITHMETIC_AND_LOGICAL.includes(cleanedInput)) {
+      this.writeArithmetic(cleanedInput);
+    } else {
+      console.log({ cleanedInput });
+      this.writePushPop(
+        cleanedInput.split(" ") as [
+          commandType: CommandType,
+          segment: string,
+          index: string
+        ]
+      );
+    }
+  }
+
+  writeArithmetic(operation: string) {
+    if (operation === "add") {
+      const { firstNum, secondNum, result } = this.performStackOperation(
+        (a, b) => a + b
+      );
+      this.generateAssemblyCodeForArithmetic(
+        operation,
+        firstNum,
+        secondNum,
+        result
+      );
+    }
+
+    if (operation === "sub") {
+      const { firstNum, secondNum, result } = this.performStackOperation(
+        (a, b) => b - a
+      );
+      this.generateAssemblyCodeForArithmetic(
+        operation,
+        firstNum,
+        secondNum,
+        result
+      );
+    }
+  }
+
+  performStackOperation(
+    operation: (firstNum: number, secondNum: number) => number
+  ): { firstNum: number; secondNum: number; result: number } {
+    const firstNum = this.popFromStack();
+    const secondNum = this.popFromStack();
+    const result = operation(firstNum, secondNum);
+
+    this.RAM[this.SP++] = result;
+    return { firstNum, secondNum, result } as const;
+  }
+
+  private generateAssemblyCodeForArithmetic(
+    operation: string,
+    firstNum: number,
+    secondNum: number,
+    result: number
+  ) {
+    this.source += `
+    //${operation} ${firstNum} and ${secondNum}, result: ${result}
+    @${result}
+    D=A
+    @${this.SP - 1}
+    M=D
+    @${this.SP}
+    M=0
+    @SP
+    M=M-1
+  `;
+  }
+
+  /**
+   * Handles push and pop commands.
+   * @param {CommandType, string, string} commandInfo - Contains command type, segment, and index.
+   */
+  writePushPop([commandType, segment, _index]: [CommandType, string, string]) {
+    const index = parseInt(_index, 10);
+    if (isNaN(index)) {
+      throw new Error(`Invalid index: ${_index}`);
+    }
+
+    if (commandType === "C_PUSH") {
+      if (segment === "constant") {
+        this.pushConstantToStack(index);
+      } else {
+        this.pushIntoSegment(index, segment);
+      }
+    } else if (commandType === "C_POP") {
+      this.pop(index, segment);
+    }
+  }
+
+  private pushConstantToStack(value: number) {
+    this.pushToStack(value);
+    this.source += `
+    //Push constant ${value}
+    @${value}
+    D=A
+    @SP
+    A=M
+    M=D
+    @SP
+    M=M+1
+    `;
+  }
+
+  private pushIntoSegment(offset: number, segment: string) {
+    let [_segment, _, pointerOfSegment] = this.extractSegment(segment);
+
+    const valueAt = this.RAM[pointerOfSegment + offset];
+    this.generateAssemblyCodeForPush(_segment, offset, valueAt);
+    this.pushToStack(valueAt);
+  }
+
+  private generateAssemblyCodeForPush(
+    segment: string,
+    offset: number,
+    address: number
+  ) {
+    this.source += `
+    //Push to ${segment} ${offset}
+    @${address}
+    D=A
+    @${this.SP}
+    M=D
+    @SP
+    M=M+1
+                `;
+  }
+
+  private pop(offset: number, segment: string) {
+    let [_segment, location, pointerOfSegment] = this.extractSegment(segment);
+    const valueAtSP = this.popFromStack();
+    this.RAM[location] = pointerOfSegment + offset;
+    this.RAM[pointerOfSegment + offset] = valueAtSP;
+
+    this.generateAssemblyCodePop(
+      _segment,
+      offset,
+      valueAtSP,
+      pointerOfSegment + offset
+    );
+  }
+
+  private generateAssemblyCodePop(
+    segment: string,
+    offset: number,
+    value: number,
+    address: number
+  ) {
+    this.source += `
+    //Pop to ${segment} ${offset}
+    @${value}
+    D=A
+    @${address}
+    M=D
+    @SP
+    M=M-1
+    @SP
+    A=M
+    M=0
+      `;
+  }
+
+  private extractSegment(segment: string): [string, number, number] {
+    const segmentMap: Record<string, [string, number, number]> = {
+      local: ["LCL", 1, this.LCL],
+      argument: ["ARG", 2, this.ARG],
+      this: ["THIS", 3, this._THIS],
+      that: ["THAT", 4, this._THAT],
+      temp: ["TEMP", 5, this.TEMP],
+    };
+
+    const result = segmentMap[segment];
+    if (!result) {
+      throw new Error(`Unknown segment: ${segment}`);
+    }
+    return result;
+  }
+
+  private popFromStack() {
+    if (this.SP < REGISTER_OF_SP) {
+      throw new Error(
+        "Stack underflow: Not enough data on the stack to perform the operation"
+      );
+    }
+    return this.RAM[--this.SP];
+  }
+
+  private pushToStack(value: number) {
+    if (this.SP >= 2047) {
+      throw new Error(
+        "Stack overflow: Too many data on the stack to perform the operation"
+      );
+    }
+    this.RAM[this.SP++] = value;
+  }
+
+  private generateAssemblyCodeForInitialization() {
     this.source += `
     //Initialize SP
     @${this.RAM[0]}
@@ -83,175 +288,6 @@ export class CodeWriter {
     D=A
     @THAT
     M=D
-    `;
-  }
-
-  write(input: string) {
-    const cleanedInput = input.replace(/undefined|null/g, "").trim();
-    if (LIST_OF_ARITHMETIC_AND_LOGICAL.includes(cleanedInput)) {
-      this.writeArithmetic(cleanedInput);
-    }
-    this.writePushPop(
-      cleanedInput.split(" ") as [
-        commandType: CommandType,
-        segment: string,
-        index: string
-      ]
-    );
-  }
-
-  writeArithmetic(input: string) {
-    //TODO:
-    //get last two item from stack pointer
-    //add them
-    //add them back into stack
-    //must support add and sub
-    if (input === "add") {
-      const firstNum = this.RAM[--this.SP];
-      const secondNum = this.RAM[--this.SP];
-      this.RAM[this.SP++] = firstNum + secondNum;
-
-      this.source += `
-    //Add ${firstNum} and ${secondNum} result: ${firstNum + secondNum}
-    @${firstNum + secondNum}
-    D=A
-    @${this.SP - 1}
-    M=D
-    @${this.SP}
-    M=0
-    @SP
-    M=M-1
-        `;
-    }
-
-    if (input === "sub") {
-      const firstNum = this.RAM[--this.SP];
-      const secondNum = this.RAM[--this.SP];
-      this.RAM[this.SP++] = secondNum - firstNum;
-
-      this.source += `
-    //Sub ${firstNum} and ${secondNum} result: ${secondNum - firstNum}
-    @${secondNum - firstNum}
-    D=A
-    @${this.SP - 1}
-    M=D
-    @${this.SP}
-    M=0
-    @SP
-    M=M-1
-        `;
-    }
-  }
-
-  writePushPop([commandType, segment, _index]: [
-    commandType: CommandType,
-    segment: string,
-    _index: string
-  ]) {
-    const index = parseInt(_index);
-    if (commandType === "C_PUSH") {
-      switch (segment) {
-        case "constant": {
-          this.RAM[this.SP] = index;
-
-          this.source += `
-    //Push to ${segment.toUpperCase()} ${index}
-    @${index}
-    D=A
-    @SP
-    A=M
-    M=D
-    @SP
-    M=M+1
-          `;
-          break;
-        }
-
-        default:
-          this.push(index, segment);
-          break;
-      }
-      this.advanceSP();
-    }
-    if (commandType === "C_POP") {
-      this.retreatSP();
-      this.pop(index, segment);
-    }
-  }
-
-  private push(offset: number, segment: string) {
-    let [_segment, _, pointerOfSegment] = this.extractSegment(segment);
-
-    const valueAt = this.RAM[pointerOfSegment + offset];
-    this.RAM[this.SP] = valueAt;
-
-    this.source += `
-    //Push to ${_segment} ${offset}
-    @${valueAt}
-    D=A
-    @${this.SP}
-    M=D
-    @SP
-    M=M+1
-                `;
-  }
-
-  private pop(offset: number, segment: string) {
-    let [_segment, location, pointerOfSegment] = this.extractSegment(segment);
-    const valueAtSP = this.currentValueAtSP();
-    this.RAM[location] = pointerOfSegment + offset;
-    this.RAM[pointerOfSegment + offset] = valueAtSP;
-
-    this.source += `
-    //Pop to ${_segment} ${offset}
-    @${valueAtSP}
-    D=A
-    @${this.RAM[location]}
-    M=D
-    @SP
-    M=M-1
-    @SP
-    A=M
-    M=0
-      `;
-  }
-
-  private extractSegment(
-    segment: string
-  ): [string, segmentValue: number, pointerOfSegment: number] {
-    if (segment === "local") {
-      return ["LCL", 1, this.LCL];
-    } else if (segment === "argument") {
-      return ["ARG", 2, this.ARG];
-    } else if (segment === "this") {
-      return ["THIS", 3, this._THIS];
-    } else if (segment === "that") {
-      return ["THAT", 4, this._THAT];
-    } else if (segment === "temp") {
-      return ["TEMP", 5, this.TEMP];
-    } else return ["ERROR", 99999999, 99999999];
-  }
-
-  private currentValueAtSP() {
-    const SP = this.RAM[this.SP];
-    return SP;
-  }
-
-  private advanceSP() {
-    this.SP++;
-  }
-  private retreatSP() {
-    this.SP--;
+`;
   }
 }
-
-//TO SELECT SOMEWHERE IN THE MEMORY LIKE RAM[256] = 0 LIKE POINTER
-//USE THIS
-//@SP
-//A=M
-//M=0
-
-//TO ASSIGN SOMEWHERE DIRECTLY IN THE MEMORY LIKE CHANGING SP; MEANING RAM[0] = 0
-//@SP
-//M=0
-//This is the same technique we use to increment SP,LCL,THIS,THAT like SP++,LCL++
