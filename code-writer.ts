@@ -26,27 +26,60 @@
 
 import { CommandType, LIST_OF_ARITHMETIC_AND_LOGICAL } from "./parser";
 
+const REGISTER_OF_SP = 256;
+const REGISTER_OF_LCL = 300;
+const REGISTER_OF_ARG = 400;
+const REGISTER_OF_THIS = 3000;
+const REGISTER_OF_THAT = 3010;
 export class CodeWriter {
-  RAM = [256, 300, 400, 3000, 3010];
+  RAM = [
+    REGISTER_OF_SP,
+    REGISTER_OF_LCL,
+    REGISTER_OF_ARG,
+    REGISTER_OF_THIS,
+    REGISTER_OF_THAT,
+  ];
 
-  SP = 256;
-  LCL = 300;
+  //CALCULATE OFFSETS HERE
+  SP = REGISTER_OF_SP;
+  LCL = REGISTER_OF_LCL;
+  ARG = REGISTER_OF_ARG;
+  _THIS = REGISTER_OF_THIS;
+  _THAT = REGISTER_OF_THAT;
 
   source = "";
 
   constructor() {
     this.source += `
-//Initialize SP
-@${this.SP}
-D=A
-@SP
-M=D
+        //Initialize SP
+        @${this.RAM[0]}
+        D=A
+        @SP
+        M=D
 
-//Initialize LCL
-@${this.LCL}
-D=A
-@LCL
-M=D
+        //Initialize LCL
+        @${this.RAM[1]}
+        D=A
+        @LCL
+        M=D
+
+        //Initialize ARG
+        @${this.RAM[2]}
+        D=A
+        @ARG
+        M=D
+
+        //Initialize THIS
+        @${this.RAM[3]}
+        D=A
+        @THIS
+        M=D
+
+        //Initialize THAT
+        @${this.RAM[4]}
+        D=A
+        @THAT
+        M=D
     `;
   }
 
@@ -58,7 +91,7 @@ M=D
       input.split(" ") as [
         commandType: CommandType,
         segment: string,
-        index: number
+        index: string
       ]
     );
   }
@@ -67,52 +100,73 @@ M=D
     //TODO:
   }
 
-  writePushPop([commandType, segment, index]: [
+  writePushPop([commandType, segment, _index]: [
     commandType: CommandType,
     segment: string,
-    index: number
+    _index: string
   ]) {
+    const index = parseInt(_index);
     if (commandType === "C_PUSH") {
       switch (segment) {
         case "constant": {
           this.RAM[this.SP++] = index;
 
           this.source += `
-//Push constant ${index}
-@${index}
-D=A
-@SP
-A=M
-M=D
-@SP
-M=M+1
+        //Push constant ${index}
+        @${index}
+        D=A
+        @SP
+        A=M
+        M=D
+        @SP
+        M=M+1
           `;
+          break;
         }
       }
     }
-
     if (commandType === "C_POP") {
-      switch (segment) {
-        case "local": {
-          this.RAM[(this.LCL += index)] = --this.SP;
-          this.source += `
-//Pop local ${index}
-@${this.RAM[this.SP]}
-D=A
-@LCL
-A=M
-M=D
-@LCL
-M=M+1
-@SP
-M=M-1
-@SP
-A=M
-M=0
-              `;
-        }
-      }
+      this.pop(index, segment);
     }
+  }
+  //257 -> 300
+  private pop(offset: number, segment: string) {
+    let [_segment, location, pointerOfSegment] = this.extractSegment(segment);
+    const valueAtSP = this.currentValueAtSP();
+    this.RAM[location] = pointerOfSegment + offset;
+    this.RAM[pointerOfSegment + offset] = valueAtSP;
+
+    this.source += `
+        //Pop to ${_segment} ${offset}
+        @${valueAtSP}
+        D=A
+        @${this.RAM[location]}
+        M=D
+        @SP
+        M=M-1
+        @SP
+        A=M
+        M=0
+      `;
+  }
+
+  private extractSegment(
+    segment: string
+  ): [string, segmentValue: number, pointerOfSegment: number] {
+    if (segment === "local") {
+      return ["LCL", 1, this.LCL];
+    } else if (segment === "argument") {
+      return ["ARG", 2, this.ARG];
+    } else if (segment === "this") {
+      return ["THIS", 3, this._THIS];
+    } else if (segment === "that") {
+      return ["THAT", 4, this._THAT];
+    } else return ["ERROR", 99999999, 99999999];
+  }
+
+  private currentValueAtSP() {
+    const SP = this.RAM[--this.SP];
+    return SP;
   }
 }
 
