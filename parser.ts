@@ -106,9 +106,4 @@ export class Parser {
   private advance(): string {
     return this.source.charAt(this.current++);
   }
-
-  private purify(input?: string) {
-    if (input) return input;
-    else "";
-  }
 }

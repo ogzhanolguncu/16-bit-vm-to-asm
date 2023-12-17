@@ -185,3 +185,85 @@
     @SP
     M=M+1
                 
+    //Add 45 and 10 result: 55
+    @55
+    D=A
+    @256
+    M=D
+    @257
+    M=0
+    @SP
+    M=M-1
+        
+    //Push to ARG 1
+    @21
+    D=A
+    @257
+    M=D
+    @SP
+    M=M+1
+                
+    //Sub 21 and 55 result: 34
+    @34
+    D=A
+    @256
+    M=D
+    @257
+    M=0
+    @SP
+    M=M-1
+        
+    //Push to THIS 6
+    @36
+    D=A
+    @257
+    M=D
+    @SP
+    M=M+1
+                
+    //Push to THIS 6
+    @36
+    D=A
+    @258
+    M=D
+    @SP
+    M=M+1
+                
+    //Add 36 and 36 result: 72
+    @72
+    D=A
+    @257
+    M=D
+    @258
+    M=0
+    @SP
+    M=M-1
+        
+    //Sub 72 and 34 result: -38
+    @-38
+    D=A
+    @256
+    M=D
+    @257
+    M=0
+    @SP
+    M=M-1
+        
+    //Push to TEMP 6
+    @510
+    D=A
+    @257
+    M=D
+    @SP
+    M=M+1
+                
+    //Add 510 and -38 result: 472
+    @472
+    D=A
+    @256
+    M=D
+    @257
+    M=0
+    @SP
+    M=M-1
+        

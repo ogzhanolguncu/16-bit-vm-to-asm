@@ -87,11 +87,12 @@ export class CodeWriter {
   }
 
   write(input: string) {
-    if (LIST_OF_ARITHMETIC_AND_LOGICAL.includes(input)) {
-      this.writeArithmetic(input);
+    const cleanedInput = input.replace(/undefined|null/g, "").trim();
+    if (LIST_OF_ARITHMETIC_AND_LOGICAL.includes(cleanedInput)) {
+      this.writeArithmetic(cleanedInput);
     }
     this.writePushPop(
-      input.split(" ") as [
+      cleanedInput.split(" ") as [
         commandType: CommandType,
         segment: string,
         index: string
@@ -101,6 +102,45 @@ export class CodeWriter {
 
   writeArithmetic(input: string) {
     //TODO:
+    //get last two item from stack pointer
+    //add them
+    //add them back into stack
+    //must support add and sub
+    if (input === "add") {
+      const firstNum = this.RAM[--this.SP];
+      const secondNum = this.RAM[--this.SP];
+      this.RAM[this.SP++] = firstNum + secondNum;
+
+      this.source += `
+    //Add ${firstNum} and ${secondNum} result: ${firstNum + secondNum}
+    @${firstNum + secondNum}
+    D=A
+    @${this.SP - 1}
+    M=D
+    @${this.SP}
+    M=0
+    @SP
+    M=M-1
+        `;
+    }
+
+    if (input === "sub") {
+      const firstNum = this.RAM[--this.SP];
+      const secondNum = this.RAM[--this.SP];
+      this.RAM[this.SP++] = secondNum - firstNum;
+
+      this.source += `
+    //Sub ${firstNum} and ${secondNum} result: ${secondNum - firstNum}
+    @${secondNum - firstNum}
+    D=A
+    @${this.SP - 1}
+    M=D
+    @${this.SP}
+    M=0
+    @SP
+    M=M-1
+        `;
+    }
   }
 
   writePushPop([commandType, segment, _index]: [
