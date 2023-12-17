@@ -63,7 +63,6 @@ export class CodeWriter {
     if (LIST_OF_ARITHMETIC_AND_LOGICAL.includes(cleanedInput)) {
       this.writeArithmetic(cleanedInput);
     } else {
-      console.log({ cleanedInput });
       this.writePushPop(
         cleanedInput.split(" ") as [
           commandType: CommandType,
