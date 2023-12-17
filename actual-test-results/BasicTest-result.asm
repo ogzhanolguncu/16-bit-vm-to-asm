@@ -28,8 +28,8 @@
     D=A
     @THAT
     M=D
-    
-    //Push to CONSTANT 10
+
+    //Push constant 10
     @10
     D=A
     @SP
@@ -37,7 +37,7 @@
     M=D
     @SP
     M=M+1
-          
+    
     //Pop to LCL 0
     @10
     D=A
@@ -49,7 +49,7 @@
     A=M
     M=0
       
-    //Push to CONSTANT 21
+    //Push constant 21
     @21
     D=A
     @SP
@@ -57,8 +57,8 @@
     M=D
     @SP
     M=M+1
-          
-    //Push to CONSTANT 22
+    
+    //Push constant 22
     @22
     D=A
     @SP
@@ -66,7 +66,7 @@
     M=D
     @SP
     M=M+1
-          
+    
     //Pop to ARG 2
     @22
     D=A
@@ -89,7 +89,7 @@
     A=M
     M=0
       
-    //Push to CONSTANT 36
+    //Push constant 36
     @36
     D=A
     @SP
@@ -97,7 +97,7 @@
     M=D
     @SP
     M=M+1
-          
+    
     //Pop to THIS 6
     @36
     D=A
@@ -109,7 +109,7 @@
     A=M
     M=0
       
-    //Push to CONSTANT 42
+    //Push constant 42
     @42
     D=A
     @SP
@@ -117,8 +117,8 @@
     M=D
     @SP
     M=M+1
-          
-    //Push to CONSTANT 45
+    
+    //Push constant 45
     @45
     D=A
     @SP
@@ -126,7 +126,7 @@
     M=D
     @SP
     M=M+1
-          
+    
     //Pop to THAT 5
     @45
     D=A
@@ -149,7 +149,7 @@
     A=M
     M=0
       
-    //Push to CONSTANT 510
+    //Push constant 510
     @510
     D=A
     @SP
@@ -157,7 +157,7 @@
     M=D
     @SP
     M=M+1
-          
+    
     //Pop to TEMP 6
     @510
     D=A
@@ -185,7 +185,7 @@
     @SP
     M=M+1
                 
-    //Add 45 and 10 result: 55
+    //add 45 and 10, result: 55
     @55
     D=A
     @256
@@ -194,7 +194,7 @@
     M=0
     @SP
     M=M-1
-        
+  
     //Push to ARG 1
     @21
     D=A
@@ -203,7 +203,7 @@
     @SP
     M=M+1
                 
-    //Sub 21 and 55 result: 34
+    //sub 21 and 55, result: 34
     @34
     D=A
     @256
@@ -212,7 +212,7 @@
     M=0
     @SP
     M=M-1
-        
+  
     //Push to THIS 6
     @36
     D=A
@@ -229,7 +229,7 @@
     @SP
     M=M+1
                 
-    //Add 36 and 36 result: 72
+    //add 36 and 36, result: 72
     @72
     D=A
     @257
@@ -238,8 +238,8 @@
     M=0
     @SP
     M=M-1
-        
-    //Sub 72 and 34 result: -38
+  
+    //sub 72 and 34, result: -38
     @-38
     D=A
     @256
@@ -248,7 +248,7 @@
     M=0
     @SP
     M=M-1
-        
+  
     //Push to TEMP 6
     @510
     D=A
@@ -257,7 +257,7 @@
     @SP
     M=M+1
                 
-    //Add 510 and -38 result: 472
+    //add 510 and -38, result: 472
     @472
     D=A
     @256
@@ -266,4 +266,4 @@
     M=0
     @SP
     M=M-1
-        
+  

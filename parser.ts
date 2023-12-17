@@ -53,7 +53,10 @@ export class Parser {
       );
       this.line++;
     }
-    await Bun.write(`${this.fileName}.asm`, codeWritter.source);
+    await Bun.write(
+      `${this.fileName.replace(".vm", "")}.asm`,
+      codeWritter.source
+    );
   }
 
   private readLine() {
