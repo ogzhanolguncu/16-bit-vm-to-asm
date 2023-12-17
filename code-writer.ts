@@ -29,6 +29,7 @@ import { CommandType, LIST_OF_ARITHMETIC_AND_LOGICAL } from "./parser";
 const REGISTER_OF_SP = 256;
 const REGISTER_OF_LCL = 300;
 const REGISTER_OF_ARG = 400;
+const REGISTER_OF_TEMP = 5;
 const REGISTER_OF_THIS = 3000;
 const REGISTER_OF_THAT = 3010;
 export class CodeWriter {
@@ -38,6 +39,7 @@ export class CodeWriter {
     REGISTER_OF_ARG,
     REGISTER_OF_THIS,
     REGISTER_OF_THAT,
+    REGISTER_OF_TEMP,
   ];
 
   //CALCULATE OFFSETS HERE
@@ -46,40 +48,41 @@ export class CodeWriter {
   ARG = REGISTER_OF_ARG;
   _THIS = REGISTER_OF_THIS;
   _THAT = REGISTER_OF_THAT;
+  TEMP = REGISTER_OF_TEMP;
 
   source = "";
 
   constructor() {
     this.source += `
-        //Initialize SP
-        @${this.RAM[0]}
-        D=A
-        @SP
-        M=D
+    //Initialize SP
+    @${this.RAM[0]}
+    D=A
+    @SP
+    M=D
 
-        //Initialize LCL
-        @${this.RAM[1]}
-        D=A
-        @LCL
-        M=D
+    //Initialize LCL
+    @${this.RAM[1]}
+    D=A
+    @LCL
+    M=D
 
-        //Initialize ARG
-        @${this.RAM[2]}
-        D=A
-        @ARG
-        M=D
+    //Initialize ARG
+    @${this.RAM[2]}
+    D=A
+    @ARG
+    M=D
 
-        //Initialize THIS
-        @${this.RAM[3]}
-        D=A
-        @THIS
-        M=D
+    //Initialize THIS
+    @${this.RAM[3]}
+    D=A
+    @THIS
+    M=D
 
-        //Initialize THAT
-        @${this.RAM[4]}
-        D=A
-        @THAT
-        M=D
+    //Initialize THAT
+    @${this.RAM[4]}
+    D=A
+    @THAT
+    M=D
     `;
   }
 
@@ -109,27 +112,50 @@ export class CodeWriter {
     if (commandType === "C_PUSH") {
       switch (segment) {
         case "constant": {
-          this.RAM[this.SP++] = index;
+          this.RAM[this.SP] = index;
 
           this.source += `
-        //Push constant ${index}
-        @${index}
-        D=A
-        @SP
-        A=M
-        M=D
-        @SP
-        M=M+1
+    //Push to ${segment.toUpperCase()} ${index}
+    @${index}
+    D=A
+    @SP
+    A=M
+    M=D
+    @SP
+    M=M+1
           `;
           break;
         }
+
+        default:
+          this.push(index, segment);
+          break;
       }
+      this.advanceSP();
     }
     if (commandType === "C_POP") {
+      this.retreatSP();
       this.pop(index, segment);
     }
   }
-  //257 -> 300
+
+  private push(offset: number, segment: string) {
+    let [_segment, _, pointerOfSegment] = this.extractSegment(segment);
+
+    const valueAt = this.RAM[pointerOfSegment + offset];
+    this.RAM[this.SP] = valueAt;
+
+    this.source += `
+    //Push to ${_segment} ${offset}
+    @${valueAt}
+    D=A
+    @${this.SP}
+    M=D
+    @SP
+    M=M+1
+                `;
+  }
+
   private pop(offset: number, segment: string) {
     let [_segment, location, pointerOfSegment] = this.extractSegment(segment);
     const valueAtSP = this.currentValueAtSP();
@@ -137,16 +163,16 @@ export class CodeWriter {
     this.RAM[pointerOfSegment + offset] = valueAtSP;
 
     this.source += `
-        //Pop to ${_segment} ${offset}
-        @${valueAtSP}
-        D=A
-        @${this.RAM[location]}
-        M=D
-        @SP
-        M=M-1
-        @SP
-        A=M
-        M=0
+    //Pop to ${_segment} ${offset}
+    @${valueAtSP}
+    D=A
+    @${this.RAM[location]}
+    M=D
+    @SP
+    M=M-1
+    @SP
+    A=M
+    M=0
       `;
   }
 
@@ -161,12 +187,21 @@ export class CodeWriter {
       return ["THIS", 3, this._THIS];
     } else if (segment === "that") {
       return ["THAT", 4, this._THAT];
+    } else if (segment === "temp") {
+      return ["TEMP", 5, this.TEMP];
     } else return ["ERROR", 99999999, 99999999];
   }
 
   private currentValueAtSP() {
-    const SP = this.RAM[--this.SP];
+    const SP = this.RAM[this.SP];
     return SP;
+  }
+
+  private advanceSP() {
+    this.SP++;
+  }
+  private retreatSP() {
+    this.SP--;
   }
 }
 
