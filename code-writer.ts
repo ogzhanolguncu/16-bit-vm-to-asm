@@ -1,3 +1,21 @@
+import {
+  MAX_STACK_SIZE,
+  REGISTER_OF_SP,
+  REGISTER_OF_LCL,
+  REGISTER_OF_ARG,
+  REGISTER_OF_THIS,
+  REGISTER_OF_THAT,
+  REGISTER_OF_TEMP,
+  SEGMENT,
+  INDEX_OF_LCL,
+  INDEX_OF_ARG,
+  INDEX_OF_THIS,
+  INDEX_OF_THAT,
+  INDEX_OF_TEMP,
+  POINTER_THIS,
+} from './constants';
+import { CommandType, LIST_OF_ARITHMETIC_AND_LOGICAL } from './parser';
+
 /**
  *           0      SP
  *           1      LCL
@@ -24,22 +42,12 @@
  *
  */
 
-import { CommandType, LIST_OF_ARITHMETIC_AND_LOGICAL } from "./parser";
-
-const REGISTER_OF_SP = 256;
-const REGISTER_OF_LCL = 300;
-const REGISTER_OF_ARG = 400;
-const REGISTER_OF_TEMP = 5;
-const REGISTER_OF_THIS = 3000;
-const REGISTER_OF_THAT = 3010;
-const MAX_STACK_SIZE = 2047;
-
 export class CodeWriter {
   RAM: number[] = new Array(MAX_STACK_SIZE).fill(0);
   SP = REGISTER_OF_SP;
 
   pointerActive = false;
-  source = "";
+  source = '';
 
   constructor() {
     this.RAM[0] = REGISTER_OF_SP; // SP
@@ -53,37 +61,28 @@ export class CodeWriter {
   }
 
   write(input: string) {
-    const cleanedInput = input.replace(/undefined|null|UNKNOWN/g, "").trim();
+    const cleanedInput = input.replace(/undefined|null|UNKNOWN/g, '').trim();
     if (!cleanedInput) return;
 
     if (LIST_OF_ARITHMETIC_AND_LOGICAL.includes(cleanedInput)) {
       this.writeArithmetic(cleanedInput);
     } else {
-      this.writePushPop(
-        cleanedInput.split(" ") as [
-          commandType: CommandType,
-          segment: string,
-          index: string
-        ]
-      );
+      this.writePushPop(cleanedInput.split(' ') as [commandType: CommandType, segment: string, index: string]);
     }
   }
 
   writeArithmetic(operation: string) {
     const { firstNum, secondNum, result } = this.performStackOperation(
-      operation === "add" ? (a, b) => a + b : (a, b) => b - a
+      operation === 'add' ? (a, b) => a + b : (a, b) => b - a
     );
-    this.generateAssemblyCodeForArithmetic(
-      operation,
-      firstNum,
-      secondNum,
-      result
-    );
+    this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
   }
 
-  performStackOperation(
-    operation: (firstNum: number, secondNum: number) => number
-  ): { firstNum: number; secondNum: number; result: number } {
+  performStackOperation(operation: (firstNum: number, secondNum: number) => number): {
+    firstNum: number;
+    secondNum: number;
+    result: number;
+  } {
     const firstNum = this.popFromStack();
     const secondNum = this.popFromStack();
     const result = operation(firstNum, secondNum);
@@ -92,12 +91,7 @@ export class CodeWriter {
     return { firstNum, secondNum, result } as const;
   }
 
-  private generateAssemblyCodeForArithmetic(
-    operation: string,
-    firstNum: number,
-    secondNum: number,
-    result: number
-  ) {
+  private generateAssemblyCodeForArithmetic(operation: string, firstNum: number, secondNum: number, result: number) {
     this.source += `
     //${operation} ${firstNum} and ${secondNum}, result: ${result}
     @${result}
@@ -121,16 +115,14 @@ export class CodeWriter {
       throw new Error(`Invalid index: ${_index}`);
     }
 
-    if (commandType === "C_PUSH") {
-      if (segment === "constant") {
+    if (commandType === 'C_PUSH') {
+      if (segment === 'constant') {
         this.pushConstantToStack(index);
       } else {
         this.pushIntoSegment(index, segment);
       }
-    } else if (commandType === "C_POP") {
-      if (segment === "pointer") {
-        this.pointerActive = true;
-      }
+    } else if (commandType === 'C_POP') {
+      this.initializePointer(segment);
       this.pop(index, segment);
     }
   }
@@ -156,18 +148,12 @@ export class CodeWriter {
     this.generateAssemblyCodeForPush(
       _segment,
       offset,
-      this.pointerActive && segment === "pointer" ? pointerOfSegment : valueAt
+      this.pointerActive && segment === 'pointer' ? pointerOfSegment : valueAt
     );
-    this.pushToStack(
-      this.pointerActive && segment === "pointer" ? pointerOfSegment : valueAt
-    );
+    this.pushToStack(this.pointerActive && segment === 'pointer' ? pointerOfSegment : valueAt);
   }
 
-  private generateAssemblyCodeForPush(
-    segment: string,
-    offset: number,
-    address: number
-  ) {
+  private generateAssemblyCodeForPush(segment: string, offset: number, address: number) {
     this.source += `
     //Push to ${segment} ${offset}
     @${address}
@@ -180,13 +166,10 @@ export class CodeWriter {
   }
 
   private pop(offset: number, segment: string) {
-    let [_segment, location, pointerOfSegment] = this.extractSegment(
-      segment,
-      offset
-    );
+    let [_segment, location, pointerOfSegment] = this.extractSegment(segment, offset);
     const valueAtSP = this.popFromStack();
 
-    if (segment === "pointer") {
+    if (segment === 'pointer') {
       this.RAM[location] = valueAtSP;
     } else {
       if (!this.pointerActive) {
@@ -199,16 +182,11 @@ export class CodeWriter {
       _segment,
       offset,
       valueAtSP,
-      segment === "pointer" ? location : pointerOfSegment + offset
+      segment === 'pointer' ? location : pointerOfSegment + offset
     );
   }
 
-  private generateAssemblyCodePop(
-    segment: string,
-    offset: number,
-    value: number,
-    address: number
-  ) {
+  private generateAssemblyCodePop(segment: string, offset: number, value: number, address: number) {
     this.source += `
     //Pop to ${segment} ${offset}
     @${value}
@@ -223,23 +201,17 @@ export class CodeWriter {
       `;
   }
 
-  private extractSegment(
-    segment: string,
-    offset?: number
-  ): [string, number, number] {
-    const segmentMap: Record<
-      string,
-      [segment: string, location: number, pointerOfSegment: number]
-    > = {
-      local: ["LCL", 1, REGISTER_OF_LCL],
-      argument: ["ARG", 2, REGISTER_OF_ARG],
-      this: ["THIS", 3, this.pointerActive ? this.RAM[3] : REGISTER_OF_THIS],
-      that: ["THAT", 4, this.pointerActive ? this.RAM[4] : REGISTER_OF_THAT],
-      temp: ["TEMP", 5, REGISTER_OF_TEMP],
-      pointer: [
-        "POINTER",
-        offset === 0 ? 3 : 4,
-        offset === 0 ? this.RAM[3] : this.RAM[4],
+  private extractSegment(segment: string, offset?: number): [string, number, number] {
+    const segmentMap: Record<string, [segment: string, location: number, pointerOfSegment: number]> = {
+      [SEGMENT.LOCAL]: ['LCL', INDEX_OF_LCL, REGISTER_OF_LCL],
+      [SEGMENT.ARGUMENT]: ['ARG', INDEX_OF_ARG, REGISTER_OF_ARG],
+      [SEGMENT.THIS]: ['THIS', INDEX_OF_THIS, this.pointerActive ? this.RAM[3] : REGISTER_OF_THIS],
+      [SEGMENT.THAT]: ['THAT', INDEX_OF_THAT, this.pointerActive ? this.RAM[4] : REGISTER_OF_THAT],
+      [SEGMENT.TEMP]: ['TEMP', INDEX_OF_TEMP, REGISTER_OF_TEMP],
+      [SEGMENT.POINTER]: [
+        'POINTER',
+        offset === POINTER_THIS ? INDEX_OF_THIS : INDEX_OF_THAT,
+        offset === POINTER_THIS ? this.RAM[3] : this.RAM[4],
       ],
     };
 
@@ -252,18 +224,14 @@ export class CodeWriter {
 
   private popFromStack() {
     if (this.SP < REGISTER_OF_SP) {
-      throw new Error(
-        "Stack underflow: Not enough data on the stack to perform the operation"
-      );
+      throw new Error('Stack underflow: Not enough data on the stack to perform the operation');
     }
     return this.RAM[--this.SP];
   }
 
   private pushToStack(value: number) {
     if (this.SP >= 2047) {
-      throw new Error(
-        "Stack overflow: Too many data on the stack to perform the operation"
-      );
+      throw new Error('Stack overflow: Too many data on the stack to perform the operation');
     }
     this.RAM[this.SP++] = value;
   }
@@ -300,5 +268,11 @@ export class CodeWriter {
     @THAT
     M=D
 `;
+  }
+
+  private initializePointer(segment: string) {
+    if (segment === 'pointer') {
+      this.pointerActive = true;
+    }
   }
 }
