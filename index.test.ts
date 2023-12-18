@@ -19,3 +19,12 @@ test("should work with pointers", async () => {
   const secondFile = readFile("./actual-test-results/PointerTest-result.asm");
   expect(firstFile).toEqual(secondFile);
 });
+
+test("should work with simple add", async () => {
+  const parser = new Parser("./tests/SimpleAdd.vm");
+  await parser.scan();
+
+  const firstFile = readFile("./tests/SimpleAdd.asm");
+  const secondFile = readFile("./actual-test-results/SimpleAdd-result.asm");
+  expect(firstFile).toEqual(secondFile);
+});
