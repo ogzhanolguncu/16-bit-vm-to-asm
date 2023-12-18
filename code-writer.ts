@@ -32,27 +32,23 @@ const REGISTER_OF_ARG = 400;
 const REGISTER_OF_TEMP = 5;
 const REGISTER_OF_THIS = 3000;
 const REGISTER_OF_THAT = 3010;
+const MAX_STACK_SIZE = 2047;
+
 export class CodeWriter {
-  RAM = [
-    REGISTER_OF_SP,
-    REGISTER_OF_LCL,
-    REGISTER_OF_ARG,
-    REGISTER_OF_THIS,
-    REGISTER_OF_THAT,
-    REGISTER_OF_TEMP,
-  ];
-
-  //CALCULATE OFFSETS HERE
+  RAM: number[] = new Array(MAX_STACK_SIZE).fill(0);
   SP = REGISTER_OF_SP;
-  LCL = REGISTER_OF_LCL;
-  ARG = REGISTER_OF_ARG;
-  _THIS = REGISTER_OF_THIS;
-  _THAT = REGISTER_OF_THAT;
-  TEMP = REGISTER_OF_TEMP;
 
+  pointerActive = false;
   source = "";
 
   constructor() {
+    this.RAM[0] = REGISTER_OF_SP; // SP
+    this.RAM[1] = REGISTER_OF_LCL; // LCL
+    this.RAM[2] = REGISTER_OF_ARG; // ARG
+    this.RAM[3] = REGISTER_OF_THIS; // THIS
+    this.RAM[4] = REGISTER_OF_THAT; // THAT
+    this.RAM[5] = REGISTER_OF_TEMP; // TEMP
+
     this.generateAssemblyCodeForInitialization();
   }
 
@@ -74,29 +70,15 @@ export class CodeWriter {
   }
 
   writeArithmetic(operation: string) {
-    if (operation === "add") {
-      const { firstNum, secondNum, result } = this.performStackOperation(
-        (a, b) => a + b
-      );
-      this.generateAssemblyCodeForArithmetic(
-        operation,
-        firstNum,
-        secondNum,
-        result
-      );
-    }
-
-    if (operation === "sub") {
-      const { firstNum, secondNum, result } = this.performStackOperation(
-        (a, b) => b - a
-      );
-      this.generateAssemblyCodeForArithmetic(
-        operation,
-        firstNum,
-        secondNum,
-        result
-      );
-    }
+    const { firstNum, secondNum, result } = this.performStackOperation(
+      operation === "add" ? (a, b) => a + b : (a, b) => b - a
+    );
+    this.generateAssemblyCodeForArithmetic(
+      operation,
+      firstNum,
+      secondNum,
+      result
+    );
   }
 
   performStackOperation(
@@ -146,6 +128,9 @@ export class CodeWriter {
         this.pushIntoSegment(index, segment);
       }
     } else if (commandType === "C_POP") {
+      if (segment === "pointer") {
+        this.pointerActive = true;
+      }
       this.pop(index, segment);
     }
   }
@@ -165,11 +150,17 @@ export class CodeWriter {
   }
 
   private pushIntoSegment(offset: number, segment: string) {
-    let [_segment, _, pointerOfSegment] = this.extractSegment(segment);
+    let [_segment, _, pointerOfSegment] = this.extractSegment(segment, offset);
 
-    const valueAt = this.RAM[pointerOfSegment + offset];
-    this.generateAssemblyCodeForPush(_segment, offset, valueAt);
-    this.pushToStack(valueAt);
+    let valueAt = this.RAM[pointerOfSegment + offset];
+    this.generateAssemblyCodeForPush(
+      _segment,
+      offset,
+      this.pointerActive && segment === "pointer" ? pointerOfSegment : valueAt
+    );
+    this.pushToStack(
+      this.pointerActive && segment === "pointer" ? pointerOfSegment : valueAt
+    );
   }
 
   private generateAssemblyCodeForPush(
@@ -189,16 +180,26 @@ export class CodeWriter {
   }
 
   private pop(offset: number, segment: string) {
-    let [_segment, location, pointerOfSegment] = this.extractSegment(segment);
+    let [_segment, location, pointerOfSegment] = this.extractSegment(
+      segment,
+      offset
+    );
     const valueAtSP = this.popFromStack();
-    this.RAM[location] = pointerOfSegment + offset;
-    this.RAM[pointerOfSegment + offset] = valueAtSP;
+
+    if (segment === "pointer") {
+      this.RAM[location] = valueAtSP;
+    } else {
+      if (!this.pointerActive) {
+        this.RAM[location] = pointerOfSegment + offset;
+      }
+      this.RAM[pointerOfSegment + offset] = valueAtSP;
+    }
 
     this.generateAssemblyCodePop(
       _segment,
       offset,
       valueAtSP,
-      pointerOfSegment + offset
+      segment === "pointer" ? location : pointerOfSegment + offset
     );
   }
 
@@ -222,13 +223,24 @@ export class CodeWriter {
       `;
   }
 
-  private extractSegment(segment: string): [string, number, number] {
-    const segmentMap: Record<string, [string, number, number]> = {
-      local: ["LCL", 1, this.LCL],
-      argument: ["ARG", 2, this.ARG],
-      this: ["THIS", 3, this._THIS],
-      that: ["THAT", 4, this._THAT],
-      temp: ["TEMP", 5, this.TEMP],
+  private extractSegment(
+    segment: string,
+    offset?: number
+  ): [string, number, number] {
+    const segmentMap: Record<
+      string,
+      [segment: string, location: number, pointerOfSegment: number]
+    > = {
+      local: ["LCL", 1, REGISTER_OF_LCL],
+      argument: ["ARG", 2, REGISTER_OF_ARG],
+      this: ["THIS", 3, this.pointerActive ? this.RAM[3] : REGISTER_OF_THIS],
+      that: ["THAT", 4, this.pointerActive ? this.RAM[4] : REGISTER_OF_THAT],
+      temp: ["TEMP", 5, REGISTER_OF_TEMP],
+      pointer: [
+        "POINTER",
+        offset === 0 ? 3 : 4,
+        offset === 0 ? this.RAM[3] : this.RAM[4],
+      ],
     };
 
     const result = segmentMap[segment];
