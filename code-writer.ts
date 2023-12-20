@@ -13,6 +13,8 @@ import {
   INDEX_OF_THAT,
   INDEX_OF_TEMP,
   POINTER_THIS,
+  EQUAL,
+  NOT_EQUAL,
 } from './constants';
 import { CommandType, LIST_OF_ARITHMETIC_AND_LOGICAL } from './parser';
 
@@ -72,10 +74,53 @@ export class CodeWriter {
   }
 
   writeArithmetic(operation: string) {
-    const { firstNum, secondNum, result } = this.performStackOperation(
-      operation === 'add' ? (a, b) => a + b : (a, b) => b - a
-    );
-    this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+    switch (operation) {
+      case 'add': {
+        const { firstNum, secondNum, result } = this.performStackOperation((a, b) => a + b);
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+        break;
+      }
+      case 'sub': {
+        const { firstNum, secondNum, result } = this.performStackOperation((a, b) => b - a);
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+        break;
+      }
+      case 'eq': {
+        const { firstNum, secondNum, result } = this.performStackOperation((a, b) => (b === a ? EQUAL : NOT_EQUAL));
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+        break;
+      }
+      case 'lt': {
+        const { firstNum, secondNum, result } = this.performStackOperation((a, b) => (b < a ? EQUAL : NOT_EQUAL));
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+        break;
+      }
+      case 'gt': {
+        const { firstNum, secondNum, result } = this.performStackOperation((a, b) => (b > a ? EQUAL : NOT_EQUAL));
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+        break;
+      }
+      case 'neg': {
+        const { firstNum, result } = this.performNegateStackOperation((a) => a * -1);
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, -1, result);
+        break;
+      }
+      case 'and': {
+        const { firstNum, secondNum, result } = this.performStackOperation((a, b) => a & b);
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+        break;
+      }
+      case 'or': {
+        const { firstNum, secondNum, result } = this.performStackOperation((a, b) => a | b);
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, secondNum, result);
+        break;
+      }
+      case 'not': {
+        const { firstNum, result } = this.performNegateStackOperation((a) => ~a);
+        this.generateAssemblyCodeForArithmetic(operation, firstNum, -1, result);
+        break;
+      }
+    }
   }
 
   performStackOperation(operation: (firstNum: number, secondNum: number) => number): {
@@ -89,6 +134,17 @@ export class CodeWriter {
 
     this.RAM[this.SP++] = result;
     return { firstNum, secondNum, result } as const;
+  }
+
+  performNegateStackOperation(operation: (firstNum: number) => number): {
+    firstNum: number;
+    result: number;
+  } {
+    const firstNum = this.popFromStack();
+    const result = operation(firstNum);
+
+    this.RAM[this.SP++] = result;
+    return { firstNum, result } as const;
   }
 
   private generateAssemblyCodeForArithmetic(operation: string, firstNum: number, secondNum: number, result: number) {

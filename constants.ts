@@ -22,3 +22,6 @@ export const SEGMENT = {
   TEMP: 'temp',
   POINTER: 'pointer',
 };
+
+export const EQUAL = -1;
+export const NOT_EQUAL = 0;
