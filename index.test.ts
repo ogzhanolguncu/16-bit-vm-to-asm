@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { Parser } from './parser';
+import { Parser } from './lexer';
 import { readFile } from './utils';
 
 test('should verify basic test case', async () => {
