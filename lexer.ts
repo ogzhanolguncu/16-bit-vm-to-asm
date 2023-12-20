@@ -17,11 +17,13 @@ export class Parser {
   private source: string;
   private line = 1;
   private fileName: string;
+  private fileNameWithoutExtensions: string;
   private sourceLineCount = 0;
   private current = 0;
 
-  constructor(fileName: string) {
+  constructor(fileName: string, fileNameWithoutExtensions: string) {
     this.fileName = fileName;
+    this.fileNameWithoutExtensions = fileNameWithoutExtensions;
     this.source = readFile(this.fileName);
     this.sourceLineCount = this.source.split('\n').length;
   }
@@ -39,7 +41,8 @@ export class Parser {
         `${this.commandType(scannedLine)} ${this.arg1(scannedLine)} ${this.arg2(
           this.commandType(scannedLine),
           scannedLine
-        )}`
+        )}`,
+        this.fileNameWithoutExtensions
       );
       this.line++;
     }

@@ -15,6 +15,8 @@ import {
   POINTER_THIS,
   EQUAL,
   NOT_EQUAL,
+  INDEX_OF_STATIC,
+  REGISTER_OF_STATIC,
 } from './constants';
 import { CommandType, LIST_OF_ARITHMETIC_AND_LOGICAL } from './lexer';
 
@@ -50,6 +52,7 @@ export class CodeWriter {
 
   pointerActive = false;
   source = '';
+  fileName = '';
 
   constructor() {
     this.RAM[0] = REGISTER_OF_SP; // SP
@@ -58,11 +61,13 @@ export class CodeWriter {
     this.RAM[3] = REGISTER_OF_THIS; // THIS
     this.RAM[4] = REGISTER_OF_THAT; // THAT
     this.RAM[5] = REGISTER_OF_TEMP; // TEMP
+    this.RAM[16] = REGISTER_OF_TEMP; // TEMP
 
     this.generateAssemblyCodeForInitialization();
   }
 
-  write(input: string) {
+  write(input: string, fileName: string) {
+    this.fileName = fileName;
     const cleanedInput = input.replace(/undefined|null|UNKNOWN/g, '').trim();
     if (!cleanedInput) return;
 
@@ -234,6 +239,21 @@ export class CodeWriter {
       this.RAM[pointerOfSegment + offset] = valueAtSP;
     }
 
+    if (segment === 'static') {
+      this.RAM[pointerOfSegment + offset] = valueAtSP;
+      console.log({
+        location,
+        pointerOfSegment,
+        offset,
+        valueAtSP,
+        17: this.RAM[17],
+        19: this.RAM[19],
+        24: this.RAM[24],
+      });
+      this.generateAssemblyCodePop(_segment, offset, valueAtSP, `${this.fileName}.${offset}`);
+      return;
+    }
+
     this.generateAssemblyCodePop(
       _segment,
       offset,
@@ -242,7 +262,7 @@ export class CodeWriter {
     );
   }
 
-  private generateAssemblyCodePop(segment: string, offset: number, value: number, address: number) {
+  private generateAssemblyCodePop(segment: string, offset: number, value: number, address: number | string) {
     this.source += `
     //Pop to ${segment} ${offset}
     @${value}
@@ -264,6 +284,7 @@ export class CodeWriter {
       [SEGMENT.THIS]: ['THIS', INDEX_OF_THIS, this.pointerActive ? this.RAM[3] : REGISTER_OF_THIS],
       [SEGMENT.THAT]: ['THAT', INDEX_OF_THAT, this.pointerActive ? this.RAM[4] : REGISTER_OF_THAT],
       [SEGMENT.TEMP]: ['TEMP', INDEX_OF_TEMP, REGISTER_OF_TEMP],
+      [SEGMENT.STATIC]: ['STATIC', INDEX_OF_STATIC, REGISTER_OF_STATIC],
       [SEGMENT.POINTER]: [
         'POINTER',
         offset === POINTER_THIS ? INDEX_OF_THIS : INDEX_OF_THAT,
